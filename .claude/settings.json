@@ -1,0 +1,20 @@
+{
+  "extraKnownMarketplaces": {
+    "superdesign": {
+      "source": {
+        "source": "github",
+        "repo": "superdesigndev/superdesign-skill"
+      }
+    },
+    "thedotmack": {
+      "source": {
+        "source": "github",
+        "repo": "thedotmack/claude-mem"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "superdesign@superdesign": true,
+    "claude-mem@thedotmack": true
+  }
+}
