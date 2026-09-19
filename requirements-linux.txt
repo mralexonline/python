@@ -1,0 +1,72 @@
+# JARVIS-MARK5 -- requirements.txt corrected for Linux / Python 3.11.
+#
+# The upstream requirements.txt cannot be installed on Linux as written. The
+# changes below are each explained; everything else is unchanged from upstream.
+
+# --- unchanged from upstream ---
+chromadb
+diskcache
+gradio-client
+ollama
+llm_axe
+selenium
+fpdf
+docx2pdf          # installs, but needs MS Word (Windows/macOS) to actually convert
+eel
+ppt2pdf
+nara
+Pillow
+easyocr
+sounddevice
+SpeechRecognition
+edge-tts
+pyttsx3
+colorama
+img2pdf
+pyautogui         # requires a display; use Xvfb on a headless box
+beautifulsoup4
+pyperclip
+flask
+jinja2
+mtranslate
+PyAudio==0.2.14
+vosk==0.3.45
+Requests==2.31.0
+playsound==1.2.2
+python-dotenv==1.0.1
+NetHyTech-STT==1.0
+groq==0.5.0
+edge-tts==6.1.11
+googlesearch-python==1.2.4
+opencv-python==4.9.0.80
+pvporcupine==1.9.5
+pygame==2.5.2
+
+# --- CORRECTED ---
+
+# upstream: `pptx` -- no such project exists on PyPI. The code does
+# `from pptx import Presentation`, which is provided by `python-pptx`.
+python-pptx
+
+# upstream: `psycopg` (v3) while backend/modules/llms.py imported `psycopg2`
+# and `psycopg2.rows` (a psycopg-3-only module). Keeping v3 and fixing the
+# code to match is the coherent choice.
+psycopg
+
+# upstream: unpinned. numpy 2.x breaks the pinned opencv/easyocr stack with
+# "numpy.core.multiarray failed to import".
+numpy<2
+
+# Must match opencv-python above. easyocr otherwise pulls headless 5.x, which
+# demands numpy>=2 and conflicts with the pin above.
+opencv-python-headless==4.9.0.80
+
+# GoogleBard1 (a webscout dependency) pulls prompt_toolkit 1.x, which does
+# `from collections import Mapping` -- removed in Python 3.10.
+prompt_toolkit>=3.0.43
+
+# --- REQUIRES MANUAL STEPS (see INSTALL_NOTES.md) ---
+# webscout==2.9  -- depends on `Helpingai-T2`, which has been deleted from
+#                   PyPI. Install with --no-deps plus a shim; see notes.
+# pywin32        -- Windows only. No Linux wheel exists, and nothing in this
+#                   repo imports it. Omitted here deliberately.

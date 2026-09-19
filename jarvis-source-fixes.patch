@@ -1,0 +1,121 @@
+diff --git a/TOOLS/SYSTEM_SETTINGS/system_theme.py b/TOOLS/SYSTEM_SETTINGS/system_theme.py
+index c12bf15..006dc1a 100644
+--- a/TOOLS/SYSTEM_SETTINGS/system_theme.py
++++ b/TOOLS/SYSTEM_SETTINGS/system_theme.py
+@@ -1,4 +1,4 @@
+-import winreg
++from TOOLS.SYSTEM_SETTINGS._winreg_compat import winreg
+ from typing import Literal
+ 
+ class WindowsThemeManager:
+diff --git a/TOOLS/SYSTEM_SETTINGS/taskbar.py b/TOOLS/SYSTEM_SETTINGS/taskbar.py
+index 75d6124..89ab183 100644
+--- a/TOOLS/SYSTEM_SETTINGS/taskbar.py
++++ b/TOOLS/SYSTEM_SETTINGS/taskbar.py
+@@ -1,4 +1,4 @@
+-import winreg
++from TOOLS.SYSTEM_SETTINGS._winreg_compat import winreg
+ from typing import Optional
+ 
+ class TaskbarCustomizer:
+diff --git a/backend/AI/dealers/dealing.py b/backend/AI/dealers/dealing.py
+index 5bc90f0..a27c334 100644
+--- a/backend/AI/dealers/dealing.py
++++ b/backend/AI/dealers/dealing.py
+@@ -2,8 +2,9 @@ from gradio_client import Client
+ from backend.modules.llms import pure_llama3
+ from backend.modules.filter import filter_python
+ # Initialize clients
+-client_img_gen = Client("stabilityai/stable-diffusion-3-medium")
+-client_img_analysis = Client("KingNish/OpenGPT-4o")
++from backend.modules._lazy_client import LazyGradioClient
++client_img_gen = LazyGradioClient("stabilityai/stable-diffusion-3-medium")
++client_img_analysis = LazyGradioClient("KingNish/OpenGPT-4o")
+ 
+ 
+ def img_generate(prompt, negative_prompt, width=1024, height=1024):
+diff --git a/backend/modules/llms.py b/backend/modules/llms.py
+index b5bbef1..e0177a3 100644
+--- a/backend/modules/llms.py
++++ b/backend/modules/llms.py
+@@ -1,7 +1,7 @@
+ import logging
+ import os
+-import psycopg2
+-from psycopg2.rows import dict_row
++import psycopg
++from psycopg.rows import dict_row
+ from diskcache import Cache
+ from gradio_client import Client
+ from groq import Groq
+@@ -32,9 +32,9 @@ def connect_db():
+     """Context manager for database connection."""
+     conn = None
+     try:
+-        conn = psycopg2.connect(**DB_PARAMS)
++        conn = psycopg.connect(**DB_PARAMS)
+         yield conn
+-    except psycopg2.Error as e:
++    except psycopg.Error as e:
+         logger.error(f"Database connection error: {e}")
+         raise
+     finally:
+@@ -79,7 +79,8 @@ VECTOR_DB_NAME = 'conversations'
+ 
+ # Initialize components
+ cache = Cache(CACHE_DIR)
+-client = Client("osanseviero/mistral-super-fast")
++from backend.modules._lazy_client import LazyGradioClient
++client = LazyGradioClient("osanseviero/mistral-super-fast")
+ chromadb_client = chromadb.Client()
+ 
+ messages_normal = [
+diff --git a/jarvis.py b/jarvis.py
+index 62241d2..cf070ce 100644
+--- a/jarvis.py
++++ b/jarvis.py
+@@ -1,4 +1,5 @@
+ import threading
++import json
+ from backend.modules.automodel import Operate
+ from backend.modules.basic.listenpy import Listen
+ import os
+@@ -32,9 +33,22 @@ def get_api():
+ os.environ['GROQ_API'] = get_api()
+ 
+ def run_docker():
+-    import os
+-    os.chdir("backend/AI/Perplexica")
+-    os.system("docker compose up -d")
++    # NOTE: this previously used os.chdir(), which changes the working
++    # directory for the WHOLE process, not just this thread. It raced with the
++    # main thread's LoadMessages() call and made the relative path to
++    # ChatLog.json resolve against the Perplexica directory, so startup failed
++    # with FileNotFoundError. Passing cwd= keeps the change local to the
++    # subprocess.
++    import subprocess
++    try:
++        subprocess.run(
++            ["docker", "compose", "up", "-d"],
++            cwd=os.path.join(os.path.dirname(os.path.abspath(__file__)),
++                             "backend", "AI", "Perplexica"),
++            check=False,
++        )
++    except FileNotFoundError:
++        print("Perplexica not started: docker is not installed or not on PATH.")
+ 
+ thread = threading.Thread(target=run_docker)
+ thread.start()
+diff --git a/morefunctions.py b/morefunctions.py
+index ca66145..a4f10ce 100644
+--- a/morefunctions.py
++++ b/morefunctions.py
+@@ -55,7 +55,7 @@ def logic(speech):
+         if "yes" in response_img_or_text.result().lower():
+             speak("Sure Sir, Generating Your Image")
+             decohere_ai.generate(speech)
+-            continue
++            return
+         
+         elif all(x in response_classifier.result().lower() for x in ("vision", "website", "call", "youtube")):
+             print("\033[91mConfused with Classification. Using Default Response\033[0m")
